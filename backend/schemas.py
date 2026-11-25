@@ -22,3 +22,12 @@ class ProductResponse(ProductBase):
     id: int = Field(..., title="ID", description="Número único asignado por la base de datos")
 
     model_config = ConfigDict(from_attributes=True)
+
+
+# Asistente de IA
+class ChatRequest(BaseModel):
+    pregunta: str = Field(..., min_length=1, title="Pregunta", examples=["¿Cuánto cuesta el pañal NeneSoft M?"])
+
+
+class ChatResponse(BaseModel):
+    respuesta: str = Field(..., title="Respuesta del asistente")

@@ -6,10 +6,13 @@ from fastapi import FastAPI, Depends, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from starlette.concurrency import run_in_threadpool
 from sqlalchemy.orm import Session
 
+import asistente
 import models
 import schemas
+import telegram_bot
 from database import engine, get_db
 
 # Crea la tabla en Supabase automáticamente si aún no existe
@@ -24,12 +27,14 @@ app = FastAPI(
     description=(
         "Servicio backend del Proyecto Final.\n\n"
         "- **Base de datos:** PostgreSQL en Supabase (tabla `products`)\n"
-        "- **Servidor:** FastAPI desplegado en Render\n\n"
+        "- **Servidor:** FastAPI desplegado en Render\n- **Asistente de IA:** Gemini (Google)\n- **Bot:** Telegram\n\n"
         "Para probar: abre un endpoint, presiona **Try it out** y luego **Execute**."
     ),
     openapi_tags=[
         {"name": "Estado", "description": "Comprobar que la API está encendida"},
         {"name": "Productos", "description": "Ver y registrar productos del catálogo"},
+        {"name": "Asistente IA", "description": "Preguntas sobre precios y stock respondidas por Gemini"},
+        {"name": "Telegram", "description": "Bot de Telegram conectado al asistente"},
     ],
 )
 
@@ -42,7 +47,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-CAMPOS = {"name": "nombre", "price": "precio", "stock": "stock", "image_url": "URL de imagen"}
+CAMPOS = {"pregunta": "pregunta", "name": "nombre", "price": "precio", "stock": "stock", "image_url": "URL de imagen"}
 
 
 # Mensajes de error de validación en español
@@ -118,3 +123,50 @@ def create_product(product: schemas.ProductCreate, db: Session = Depends(get_db)
     db.refresh(nuevo_producto)
     avisar_slack(nuevo_producto)
     return nuevo_producto
+
+
+# 3. Asistente de IA: responde preguntas sobre precios y stock
+@app.post(
+    "/api/v1/chat",
+    response_model=schemas.ChatResponse,
+    tags=["Asistente IA"],
+    summary="Preguntar al asistente",
+    description="Envía una pregunta. El asistente lee los productos de Supabase y responde con Gemini.",
+)
+def chat(datos: schemas.ChatRequest, db: Session = Depends(get_db)):
+    productos = db.query(models.Product).all()
+    return {"respuesta": asistente.responder(datos.pregunta, productos)}
+
+
+# 4. Bot de Telegram (webhook): Telegram envía aquí cada mensaje que recibe el bot
+@app.post("/telegram/webhook", tags=["Telegram"], summary="Recibir mensajes del bot")
+async def telegram_webhook(request: Request, db: Session = Depends(get_db)):
+    if not telegram_bot.activo():
+        return {"ok": False}
+    update = await request.json()
+    mensaje = update.get("message") or update.get("edited_message") or {}
+    chat_id = mensaje.get("chat", {}).get("id")
+    texto = (mensaje.get("text") or "").strip()
+    if not chat_id or not texto:
+        return {"ok": True}
+
+    productos = db.query(models.Product).order_by(models.Product.name).all()
+    if texto.startswith("/start") or texto.startswith("/ayuda"):
+        respuesta = telegram_bot.BIENVENIDA
+    elif texto.startswith("/productos"):
+        respuesta = telegram_bot.lista_productos(productos)
+    else:
+        respuesta = await run_in_threadpool(asistente.responder, texto, productos)
+    await run_in_threadpool(telegram_bot.enviar_mensaje, chat_id, respuesta)
+    return {"ok": True}
+
+
+# Al encender en Render, conectar el bot de Telegram automáticamente
+@app.on_event("startup")
+def conectar_telegram():
+    url = os.getenv("RENDER_EXTERNAL_URL")  # Render pone esta variable sola
+    if telegram_bot.activo() and url:
+        try:
+            print("Telegram webhook:", telegram_bot.configurar_webhook(url))
+        except Exception as e:
+            print("Aviso: no se pudo conectar Telegram:", e)

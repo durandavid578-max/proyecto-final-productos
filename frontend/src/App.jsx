@@ -3,6 +3,7 @@ import { getProducts, createProduct } from './api'
 import { ProductForm } from './components/ProductForm'
 import { ProductGrid } from './components/ProductGrid'
 import { Product3DViewer } from './components/Product3DViewer'
+import { ChatAsistente } from './components/ChatAsistente'
 
 function Resumen({ icono, titulo, valor }) {
   return (
@@ -84,6 +85,27 @@ export default function App() {
           </div>
         </section>
 
+        <section className="grid gap-6 md:grid-cols-2 items-start">
+          <ChatAsistente />
+          <div className="bg-slate-900/80 rounded-2xl ring-1 ring-white/10 p-6 space-y-3">
+            <h2 className="text-lg font-semibold">💬 También en Telegram</h2>
+            <p className="text-slate-400 text-sm">
+              El mismo asistente responde por Telegram. Busca el bot, escribe <span className="text-indigo-300">/start</span> y pregúntale por precios o stock.
+            </p>
+            <ul className="text-sm text-slate-300 space-y-1">
+              <li>• <span className="text-indigo-300">/productos</span> → lista completa</li>
+              <li>• "¿Cuánto cuesta…?" → precio</li>
+              <li>• "¿Hay stock de…?" → disponibilidad</li>
+            </ul>
+            {import.meta.env.VITE_TELEGRAM_URL && (
+              <a href={import.meta.env.VITE_TELEGRAM_URL} target="_blank" rel="noreferrer"
+                 className="inline-block mt-2 rounded-xl bg-sky-600 hover:bg-sky-500 px-4 py-2 font-medium text-white">
+                Abrir el bot en Telegram ↗
+              </a>
+            )}
+          </div>
+        </section>
+
         <section>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-semibold">Productos ({products.length})</h2>
@@ -96,7 +118,7 @@ export default function App() {
       </main>
 
       <footer className="text-center text-xs text-slate-500 pb-8">
-        Proyecto Final · React + Vite + Tailwind · API FastAPI (Render) · Base de datos Supabase
+        Proyecto Final · React + Vite + Tailwind · API FastAPI (Render) · Base de datos Supabase · IA Gemini · Bot de Telegram
       </footer>
     </div>
   )

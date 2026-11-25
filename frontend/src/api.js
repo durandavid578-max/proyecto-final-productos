@@ -23,3 +23,15 @@ export async function createProduct(product) {
   }
   return res.json()
 }
+
+// POST: preguntar al asistente de IA (Gemini)
+export async function askAssistant(pregunta) {
+  const res = await fetch(`${API_URL}/api/v1/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ pregunta }),
+  })
+  if (!res.ok) throw new Error(`Error ${res.status} al consultar al asistente`)
+  const data = await res.json()
+  return data.respuesta
+}

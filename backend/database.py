@@ -17,7 +17,7 @@ if DATABASE_URL.startswith("postgresql://"):
 engine = create_engine(
     DATABASE_URL,
     pool_pre_ping=True,
-    connect_args={"connect_timeout": 10},
+    connect_args={"connect_timeout": 10} if DATABASE_URL.startswith("postgresql") else {},
 )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
