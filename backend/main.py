@@ -13,7 +13,10 @@ import schemas
 from database import engine, get_db
 
 # Crea la tabla en Supabase automáticamente si aún no existe
-models.Base.metadata.create_all(bind=engine)
+try:
+    models.Base.metadata.create_all(bind=engine)
+except Exception as e:
+    print("Aviso: no se pudo verificar la tabla al iniciar:", e)
 
 app = FastAPI(
     title="API de Catálogo de Productos",

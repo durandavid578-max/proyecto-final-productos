@@ -6,11 +6,19 @@ from dotenv import load_dotenv
 # Carga las variables del archivo .env
 load_dotenv()
 
-DATABASE_URL = os.getenv("DATABASE_URL")
+DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
+
+# Usar siempre el conector psycopg2
+if DATABASE_URL.startswith("postgresql://"):
+    DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+psycopg2://", 1)
 
 # Motor de conexión hacia PostgreSQL en Supabase
-# pool_pre_ping evita errores cuando Supabase cierra conexiones inactivas
-engine = create_engine(DATABASE_URL, pool_pre_ping=True)
+# connect_timeout: si Supabase no responde en 10 segundos, muestra error en vez de quedarse colgado
+engine = create_engine(
+    DATABASE_URL,
+    pool_pre_ping=True,
+    connect_args={"connect_timeout": 10},
+)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
